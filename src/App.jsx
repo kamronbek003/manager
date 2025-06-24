@@ -294,7 +294,7 @@ function App() {
     if (receivedToken && typeof receivedToken === 'string') {
       try {
         const decodedToken = jwtDecode(receivedToken);
-        const fullName = [decodedToken?.name, decodedToken?.lastname].filter(Boolean).join(' ').trim() || 'Admin';
+        const fullName = [decodedToken?.name, decodedToken?.lastname].filter(Boolean).join(' ').trim() || 'ADMIN';
         localStorage.setItem('admin_token', receivedToken);
         localStorage.setItem('admin_name', fullName);
         setToken(receivedToken);
@@ -312,7 +312,7 @@ function App() {
         localStorage.setItem('admin_token', receivedToken);
         localStorage.removeItem('admin_name');
         setToken(receivedToken);
-        setAdminName('Admin');
+        setAdminName('ADMIN');
         fetchTodaysNotesForNotifications(receivedToken);
         fetchPendingApplicationsCount(receivedToken);
         showToast('Tizimga kirildi (ism aniqlanmadi).', 'info');
@@ -350,23 +350,24 @@ function App() {
   }, [showToast]);
 
   useEffect(() => {
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        const fullName = [decoded?.name, decoded?.lastname].filter(Boolean).join(' ').trim() || 'Admin';
-        setAdminName(fullName);
-        localStorage.setItem('admin_name', fullName);
-        fetchTodaysNotesForNotifications(token);
-        fetchPendingApplicationsCount(token);
-      } catch (e) {
-        console.error("Error decoding token on initial load:", e);
-        setToken(null);
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_name');
-        showToast('Token yaroqsiz, iltimos qayta kiring.', 'error');
-      }
+  console.log("[App.jsx useEffect] Token holati o'zgardi:", token ? "mavjud" : "mavjud emas");
+  if (token) {
+    try {
+      console.log("[App.jsx useEffect] Token dekodlashga urinilmoqda...");
+      const decoded = jwtDecode(token);
+      console.log("[App.jsx useEffect] Token muvaffaqiyatli dekodlandi:", decoded);
+      // ... agar token muvaffaqiyatli dekodlansa
+    } catch (e) {
+      console.error("[App.jsx useEffect] Token dekodlashda xato:", e); // << Shu yerdagi log
+      setToken(null);
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_name');
+      showToast('Token yaroqsiz, iltimos qayta kiring.', 'error');
     }
-  }, [fetchTodaysNotesForNotifications, fetchPendingApplicationsCount, showToast, token]);
+  } else {
+     console.log("[App.jsx useEffect] Token mavjud emas, login sahifasi ko'rsatiladi.");
+  }
+}, [fetchTodaysNotesForNotifications, fetchPendingApplicationsCount, showToast, token]);
 
   useEffect(() => {
     if (token) {
@@ -469,8 +470,8 @@ function App() {
         <div className="p-4 border-t border-gray-700 mt-auto flex-shrink-0">
           <div className="flex items-center justify-center mb-4 px-2 py-2.5 bg-gray-800 rounded-lg">
             <UserCircle size={24} className="mr-2.5 text-gray-400 flex-shrink-0" aria-hidden="true" />
-            <span className="text-sm text-gray-300 truncate" title={adminName || 'Admin'}>
-              {adminName || 'Admin'}
+            <span className="text-sm text-gray-300 truncate" title={adminName || 'ADMIN'}>
+              {adminName || 'ADMIN'}
             </span>
           </div>
           <button
