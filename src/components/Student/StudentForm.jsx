@@ -39,7 +39,7 @@ const generateNextStudentId = (lastId) => {
 
 const calculateLessonsInMonth = (darsJadvali, whenCome) => {
     if (!darsJadvali || !whenCome) return 0;
-    const days = darsJadvali.split(",").map((day) => day.trim().toLowerCase());
+    const days = darsJadvali.split("/").map((day) => day.trim().toLowerCase());
     const startDate = new Date(whenCome);
     if (isNaN(startDate.getTime())) return 0;
 
