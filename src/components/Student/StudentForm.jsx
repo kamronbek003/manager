@@ -28,13 +28,13 @@ const getSafeKey = (item, index) =>
     `${typeof item === "string" ? item : JSON.stringify(item)}-${index}`;
 
 const generateNextStudentId = (lastId) => {
-    if (!lastId || typeof lastId !== "string" || !lastId.startsWith("N"))
+    if (!lastId || typeof lastId !== "string" || !lastId.startsWith("L"))
         return null;
     const numPartStr = lastId.substring(1);
     if (numPartStr.length === 0) return null;
     const numPart = parseInt(numPartStr, 10);
     if (isNaN(numPart)) return null;
-    return `N${numPart + 1}`;
+    return `L${numPart + 1}`;
 };
 
 const calculateLessonsInMonth = (darsJadvali, whenCome) => {
