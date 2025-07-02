@@ -6,45 +6,48 @@ import ErrorMessage from '../Essential/ErrorMessage';
 import Pagination from '../Essential/Pagination';
 import Modal from '../Essential/Modal';
 import ConfirmationModal from '../Essential/ConfirmationModal';
-import GroupForm from './GroupForm'; 
+import GroupForm from './GroupForm';
 
 const DEFAULT_LIMIT = 15;
-const DEBOUNCE_DELAY = 300; 
+const DEBOUNCE_DELAY = 300;
 
+// `group.name` ustuni qo'shilgan GroupRow komponenti
 const GroupRow = React.memo(({ group, onEdit, onDelete, teacherMap }) => {
     const teacherName = group.teacherId ? teacherMap[group.teacherId] : null;
 
     return (
         <tr className="hover:bg-gray-50 transition-colors duration-150 ease-in-out">
             <td className="px-4 py-3.5 whitespace-nowrap text-sm text-gray-900 font-medium">{group.groupId}</td>
+            {/* YANGI QO'SHILGAN USTUN */}
+            <td className="px-4 py-3.5 whitespace-nowrap text-sm text-gray-800 font-medium">{group.name || '-'}</td>
             <td className="px-4 py-3.5 whitespace-nowrap text-sm text-gray-700">{group.darsJadvali || '-'}</td>
             <td className="px-4 py-3.5 whitespace-nowrap text-sm text-gray-700">{group.darsVaqt || '-'}</td>
             <td className="px-4 py-3.5 whitespace-nowrap text-sm text-gray-600">
                 {teacherName || <span className="text-gray-400 italic">Biriktirilmagan</span>}
             </td>
-             <td className="px-4 py-3.5 whitespace-nowrap text-sm">
+            <td className="px-4 py-3.5 whitespace-nowrap text-sm">
                 <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full capitalize ${
                     group.status === 'FAOL' ? 'bg-green-100 text-green-800'
                     : group.status === 'NOFAOL' ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-red-100 text-red-800' 
+                    : 'bg-red-100 text-red-800'
                 }`}>
                     {group.status.toLowerCase()}
                 </span>
             </td>
             <td className="px-4 py-3.5 whitespace-nowrap text-sm text-gray-600">
-                {group.coursePrice != null ? group.coursePrice.toLocaleString('uz-UZ') + " so'm" : 'N/A'} 
+                {group.coursePrice != null ? group.coursePrice.toLocaleString('uz-UZ') + " so'm" : 'N/A'}
             </td>
             <td className="px-4 py-3.5 whitespace-nowrap text-sm font-medium space-x-3.5">
-                <button 
-                    onClick={() => onEdit(group)} 
-                    className="text-indigo-600 hover:text-indigo-800 transition-colors" 
+                <button
+                    onClick={() => onEdit(group)}
+                    className="text-indigo-600 hover:text-indigo-800 transition-colors"
                     title="Tahrirlash"
                 >
                     <Edit size={18} />
                 </button>
-                <button 
-                    onClick={() => onDelete(group.id)} 
-                    className="text-red-600 hover:text-red-800 transition-colors" 
+                <button
+                    onClick={() => onDelete(group.id)}
+                    className="text-red-600 hover:text-red-800 transition-colors"
                     title="O'chirish"
                 >
                     <Trash2 size={18} />
@@ -55,27 +58,29 @@ const GroupRow = React.memo(({ group, onEdit, onDelete, teacherMap }) => {
 });
 
 const SortIcon = React.memo(({ column, currentSort }) => (
-    <ArrowUpDown 
-        size={15} 
+    <ArrowUpDown
+        size={15}
         className={`ml-1.5 inline-block transition-opacity ${
             currentSort.sortBy === column ? 'opacity-100 text-indigo-600' : 'opacity-30 group-hover:opacity-80'
-        }`} 
-        aria-hidden="true" 
+        }`}
+        aria-hidden="true"
     />
 ));
 
 
-const GroupList = ({ token, showToast }) => { 
+const GroupList = ({ token, showToast }) => {
     const [groups, setGroups] = useState([]);
     const [teachers, setTeachers] = useState([]);
-    const [loading, setLoading] = useState(true); 
-    const [teachersLoading, setTeachersLoading] = useState(false); 
-    const [listError, setListError] = useState(null); 
+    const [loading, setLoading] = useState(true);
+    const [teachersLoading, setTeachersLoading] = useState(false);
+    const [listError, setListError] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
+    // YANGILANGAN FILTRLAR
     const [filters, setFilters] = useState({
         filterByGroupId: '',
+        filterByName: '',
         filterByStatus: '',
         filterByTeacherId: '',
     });
@@ -110,7 +115,7 @@ const GroupList = ({ token, showToast }) => {
 
     const fetchGroups = useCallback(async (filtersToUse = filters, pageToUse = currentPage, sortToUse = sort) => {
         setLoading(true);
-        setListError(null); 
+        setListError(null);
         try {
             const queryParams = new URLSearchParams({
                 page: pageToUse.toString(),
@@ -142,7 +147,7 @@ const GroupList = ({ token, showToast }) => {
                     : err.originalError.response.data.message;
             }
             if (showToast) showToast(`Guruhlarni yuklab bo'lmadi: ${userError}`, "error");
-            setListError(userError); 
+            setListError(userError);
             setGroups([]); setTotalItems(0); setTotalPages(1);
         } finally {
             setLoading(false);
@@ -152,7 +157,7 @@ const GroupList = ({ token, showToast }) => {
     const debouncedFetchGroups = useCallback((newFilters) => {
         if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
         filterTimeoutRef.current = setTimeout(() => {
-            setCurrentPage(1); 
+            setCurrentPage(1);
             fetchGroups(newFilters, 1, sort);
         }, DEBOUNCE_DELAY);
     }, [fetchGroups, sort]);
@@ -166,13 +171,13 @@ const GroupList = ({ token, showToast }) => {
 
     useEffect(() => {
         fetchGroups(filters, currentPage, sort);
-        if (teachers.length === 0) { 
+        if (teachers.length === 0) {
             fetchTeachers();
         }
-        return () => { 
+        return () => {
             if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
         };
-    }, [currentPage, sort, token, fetchTeachers, fetchGroups, filters, teachers.length]);
+    }, [currentPage, sort, token]); // Removed dependencies that are stable or cause re-fetches handled elsewhere
 
     const teacherMap = useMemo(() => {
         if (!teachers || teachers.length === 0) return {};
@@ -193,25 +198,24 @@ const GroupList = ({ token, showToast }) => {
 
     const openModal = useCallback((group = null) => {
         setEditingGroup(group);
-        setListError(null); 
-        if (teachers.length === 0 && !teachersLoading) { 
-             fetchTeachers(); 
+        setListError(null);
+        if (teachers.length === 0 && !teachersLoading) {
+            fetchTeachers();
         }
         setIsModalOpen(true);
-    }, [teachers.length, fetchTeachers, teachersLoading]); 
+    }, [teachers.length, fetchTeachers, teachersLoading]);
 
     const closeModal = useCallback(() => {
         setIsModalOpen(false);
         setEditingGroup(null);
     }, []);
 
-    const handleFormSubmitCallback = useCallback((result) => {
+    const handleFormSubmitCallback = useCallback(() => {
         closeModal();
-        const pageToFetch = editingGroup ? currentPage : 1; 
-        if (!editingGroup) setCurrentPage(1); 
-        fetchGroups(filters, pageToFetch, sort); 
-        // Muvaffaqiyatli xabar GroupForm ichida showToast orqali chaqiriladi
-    }, [closeModal, fetchGroups, filters, editingGroup, currentPage, sort]); 
+        const pageToFetch = editingGroup ? currentPage : 1;
+        if (!editingGroup) setCurrentPage(1);
+        fetchGroups(filters, pageToFetch, sort);
+    }, [closeModal, fetchGroups, filters, editingGroup, currentPage, sort]);
 
     const openConfirmModal = useCallback((groupId) => {
         setDeletingGroupId(groupId);
@@ -228,12 +232,12 @@ const GroupList = ({ token, showToast }) => {
         try {
             await apiRequest(`/groups/${deletingGroupId}`, 'DELETE', null, token);
             if (showToast) showToast("Guruh muvaffaqiyatli o'chirildi!", "success");
-            
+
             closeConfirmModal();
             if (groups.length === 1 && currentPage > 1) {
-                setCurrentPage(prev => prev - 1); 
+                setCurrentPage(prev => prev - 1);
             } else {
-                fetchGroups(filters, currentPage, sort); // Joriy sahifani yangilash
+                fetchGroups(filters, currentPage, sort);
             }
         } catch (err) {
             console.error("[GroupList] handleDeleteConfirm: Guruhni o'chirishda XATOLIK:", err);
@@ -244,10 +248,10 @@ const GroupList = ({ token, showToast }) => {
                 deleteErrorMsg = err.message;
             }
             if (showToast) showToast(deleteErrorMsg, "error");
-            else setListError(deleteErrorMsg); 
+            else setListError(deleteErrorMsg);
             closeConfirmModal();
         }
-    }, [deletingGroupId, token, closeConfirmModal, groups.length, currentPage, fetchGroups, filters, sort, showToast]); 
+    }, [deletingGroupId, token, closeConfirmModal, groups.length, currentPage, fetchGroups, filters, sort, showToast]);
 
     return (
         <div className="bg-white p-6 md:p-8 rounded-xl shadow-xl m-8">
@@ -265,12 +269,21 @@ const GroupList = ({ token, showToast }) => {
 
             {listError && <ErrorMessage message={listError} onClose={() => setListError(null)} type="error" />}
 
-            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4 items-end"> 
+            {/* YANGILANGAN FILTRLAR BLOKI */}
+            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 items-end">
                 <input
                     type="text"
                     name="filterByGroupId"
-                    placeholder="Guruh ID bo'yicha..."
+                    placeholder="Guruh ID bo'yicha"
                     value={filters.filterByGroupId}
+                    onChange={handleFilterChange}
+                    className="px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <input
+                    type="text"
+                    name="filterByName"
+                    placeholder="Guruh darajasi bo'yicha"
+                    value={filters.filterByName}
                     onChange={handleFilterChange}
                     className="px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
@@ -313,19 +326,21 @@ const GroupList = ({ token, showToast }) => {
 
             {!loading && groups.length === 0 && !listError && (
                  <div className="py-12 text-center text-gray-500">
-                    <Users size={48} className="mx-auto mb-3 text-gray-400" />
-                    <p className="text-lg font-medium">Hozircha guruhlar mavjud emas.</p>
-                    <p className="text-sm">Filterlarni o'zgartirib ko'ring yoki yangi guruh qo'shing.</p>
-                </div>
+                     <Users size={48} className="mx-auto mb-3 text-gray-400" />
+                     <p className="text-lg font-medium">Hozircha guruhlar mavjud emas.</p>
+                     <p className="text-sm">Filterlarni o'zgartirib ko'ring yoki yangi guruh qo'shing.</p>
+                 </div>
             )}
 
             {groups.length > 0 && (
                 <>
                     <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-md mb-6">
                         <table className="min-w-full bg-white divide-y divide-gray-200">
+                            {/* YANGILANGAN JADVAL SARLAVHASI */}
                             <thead className="bg-gray-100">
                                 <tr>
                                     <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider group cursor-pointer hover:bg-gray-200 transition-colors" onClick={() => handleSort('groupId')}>Guruh ID <SortIcon column="groupId" currentSort={sort} /></th>
+                                    <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider group cursor-pointer hover:bg-gray-200 transition-colors" onClick={() => handleSort('name')}>Guruh Darajasi <SortIcon column="name" currentSort={sort} /></th>
                                     <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Dars Jadvali</th>
                                     <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Dars Vaqti</th>
                                     <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider group cursor-pointer hover:bg-gray-200 transition-colors" onClick={() => handleSort('teacherId')}>O'qituvchi <SortIcon column="teacherId" currentSort={sort} /></th>
@@ -360,7 +375,7 @@ const GroupList = ({ token, showToast }) => {
             )}
 
             <Modal isOpen={isModalOpen} onClose={closeModal} title={editingGroup ? "Guruhni Tahrirlash" : "Yangi Guruh Qo'shish"}>
-                {teachersLoading && !teachers.length ? ( 
+                {teachersLoading && !teachers.length ? (
                     <div className="py-10"><LoadingSpinner message="O'qituvchilar ro'yxati yuklanmoqda..." /></div>
                 ) : (
                     <GroupForm
@@ -369,7 +384,7 @@ const GroupList = ({ token, showToast }) => {
                         teachers={teachers}
                         onFormSubmit={handleFormSubmitCallback}
                         onCancel={closeModal}
-                        showToast={showToast} 
+                        showToast={showToast}
                     />
                 )}
             </Modal>

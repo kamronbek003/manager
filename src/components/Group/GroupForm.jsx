@@ -107,6 +107,15 @@ const GroupForm = ({ token, initialData, teachers, onFormSubmit, onCancel, showT
       e.preventDefault();
       setFormError(null);
 
+      const { name } = formData; // Destructuring 'name'
+
+      console.log("YUBORISH OLDIDAN 'NAME' QIYMATI:", name); // <-- SHU YERGA CONSOLE.LOG QO'SHING
+
+      // Validatsiya...
+      if (!name.trim()) {
+          return showToast("Guruh nomi kiritilishi shart.", "error");
+      }
+
       if (!isEditing && !formData.groupId.trim()) {
         if (showToast) showToast("Guruh ID kiritilishi shart.", "error");
         else setFormError("Guruh ID kiritilishi shart.");
@@ -224,7 +233,7 @@ const GroupForm = ({ token, initialData, teachers, onFormSubmit, onCancel, showT
           </div>
           <div>
             <label htmlFor="name" className={labelBaseClass}>
-              Guruh Nomi *
+              Guruh Darajasi *
             </label>
             <input
               type="text"
@@ -310,7 +319,6 @@ const GroupForm = ({ token, initialData, teachers, onFormSubmit, onCancel, showT
               value={formData.coursePrice}
               onChange={handleChange}
               min="0"
-              step="50000"
               className={`${inputBaseClass} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
               placeholder="Masalan: 500000"
             />

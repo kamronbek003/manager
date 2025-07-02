@@ -1,8 +1,15 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense, lazy, Component } from 'react';
 import {
+  BrowserRouter as Router, // Odatda index.js da o'raladi, lekin bu yerda import qoladi
+  Routes,
+  Route,
+  useNavigate, // Yangi: sahifalar orasida o'tish uchun
+  useLocation, // Yangi: joriy URL manzilini olish uchun
+} from 'react-router-dom';
+import {
   LayoutDashboard, Users, LogOut, BookUser, UsersRound as GroupIcon, DollarSign,
   Notebook, ClipboardCheck, UserCircle, History, Menu, X as CloseIcon, UserX,
-  LibraryBig, BellDot,
+  LibraryBig, BellDot, AreaChart,
 } from 'lucide-react';
 import { jwtDecode } from 'jwt-decode';
 import LoginForm from './components/Login/LoginForm';
@@ -12,6 +19,7 @@ import ToastNotification from './components/Essential/ToastNotification';
 import { apiRequest } from './utils/api';
 import { playNotificationSound } from './services/notificationService';
 
+// Komponentlarni lazy (dangasa) yuklash
 const LazyDashboard = lazy(() => import('./components/Dashboard/Dashboard'));
 const LazyStudentList = lazy(() => import('./components/Student/StudentList'));
 const LazyTeacherList = lazy(() => import('./components/Teacher/TeacherList'));
@@ -24,6 +32,8 @@ const LazyDebtorStudentsList = lazy(() => import('./components/Student/DebtorStu
 const LazyCourseList = lazy(() => import('./components/Course/CourseList'));
 const LazyApplicationList = lazy(() => import('./components/Application/ApplicationList'));
 const LazySalaryList = lazy(() => import('./components/Salary/SalaryList'));
+const LazyTeacherMonitoringList = lazy(() => import('./components/Monitoring/TeacherMonitoringList'));
+const LazyTeacherMonitoringDetail = lazy(() => import('./components/Monitoring/TeacherMonitoringDetail')); // YANGI: Detail komponenti
 
 const NOTES_CHECK_INTERVAL = 100000;
 const NOTES_FETCH_INTERVAL = 60000;
@@ -32,14 +42,36 @@ const APPLICATIONS_CHECK_INTERVAL = 20000;
 const APPLICATIONS_FETCH_LIMIT = 5;
 const PENDING_APPLICATIONS_COUNT_FETCH_INTERVAL = 60000;
 
+// Xatolarni ushlab turish uchun ErrorBoundary komponenti
 class ErrorBoundary extends Component {
   state = { error: null };
+
   static getDerivedStateFromError(error) {
+    // Keyingi renderda fallback UI ko'rsatish uchun state ni yangilang
     return { error };
   }
+
+  componentDidCatch(error, errorInfo) {
+    // Xato haqida xizmatga yuborish (masalan, Sentry)
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
   render() {
     if (this.state.error) {
-      return <p className="text-center text-red-700 text-xl mt-12">Error loading component: {this.state.error.message}</p>;
+      // Siz xato UI ni o'zingizning dizayningizga moslashingiz mumkin
+      return (
+        <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-red-50 rounded-lg shadow-md m-4">
+          <p className="text-2xl font-bold text-red-700 mb-4">Biror narsa noto'g'ri ketdi!</p>
+          <p className="text-lg text-red-600 mb-2">Komponentni yuklashda xatolik yuz berdi.</p>
+          <p className="text-sm text-red-500">Xato: {this.state.error.message}</p>
+          <button
+            onClick={() => this.setState({ error: null })}
+            className="mt-6 px-6 py-3 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition-colors"
+          >
+            Qayta yuklashga urinish
+          </button>
+        </div>
+      );
     }
     return this.props.children;
   }
@@ -50,28 +82,70 @@ function App() {
   const [adminName, setAdminName] = useState(localStorage.getItem('admin_name'));
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // React Router hooklari
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Sidebar navigatsiya bo'limlari
   const sections = useMemo(() => ({
-    dashboard: { label: 'Boshqaruv Paneli', icon: LayoutDashboard, component: LazyDashboard },
-    applications: { label: 'Telegram Leadlar', icon: BellDot, component: LazyApplicationList },
-    students: { label: 'Talabalar', icon: Users, component: LazyStudentList },
-    teachers: { label: "O'qituvchilar", icon: BookUser, component: LazyTeacherList },
-    courses: { label: 'Kurslar', icon: LibraryBig, component: LazyCourseList },
-    groups: { label: 'Guruhlar', icon: GroupIcon, component: LazyGroupList },
-    attendances: { label: 'Davomat', icon: ClipboardCheck, component: LazyAttendanceList },
-    notes: { label: 'Eslatmalar', icon: Notebook, component: LazyNoteList },
-    payments: { label: "To'lovlar", icon: DollarSign, component: LazyPaymentList },
-    paymentHistory: { label: "To'lovlar Tarixi", icon: History, component: LazyPaymentHistoryList },
-    debtors: { label: 'Qarzdorlar', icon: UserX, component: LazyDebtorStudentsList },
-    salaries: { label: 'Maoshlar', icon: DollarSign, component: LazySalaryList },
+    dashboard: { label: 'Boshqaruv Paneli', icon: LayoutDashboard, path: '/' },
+    applications: { label: 'Telegram Leadlar', icon: BellDot, path: '/applications' },
+    students: { label: 'Talabalar', icon: Users, path: '/students' },
+    teachers: { label: "O'qituvchilar", icon: BookUser, path: '/teachers' },
+    monitoring: { label: 'Nazorat', icon: AreaChart, path: '/monitoring' }, // Monitoring ro'yxati uchun yo'l
+    courses: { label: 'Kurslar', icon: LibraryBig, path: '/courses' },
+    groups: { label: 'Guruhlar', icon: GroupIcon, path: '/groups' },
+    attendances: { label: 'Davomat', icon: ClipboardCheck, path: '/attendances' },
+    notes: { label: 'Eslatmalar', icon: Notebook, path: '/notes' },
+    payments: { label: "To'lovlar", icon: DollarSign, path: '/payments' },
+    paymentHistory: { label: "To'lovlar Tarixi", icon: History, path: '/paymentHistory' },
+    debtors: { label: 'Qarzdorlar', icon: UserX, path: '/debtors' },
+    salaries: { label: 'Maoshlar', icon: DollarSign, path: '/salaries' },
   }), []);
 
+  // activeSection ni URL ga qarab belgilash
   const [activeSection, setActiveSection] = useState(() => {
     const savedSection = localStorage.getItem('active_section_key');
-    if (savedSection && sections.hasOwnProperty(savedSection)) {
+    // URL ga qarab activeSection ni aniqlash
+    const currentPath = location.pathname;
+    let initialActiveSection = 'dashboard'; // Default
+
+    if (currentPath.startsWith('/monitoring/teacher/')) {
+      initialActiveSection = 'monitoring';
+    } else {
+      for (const key in sections) {
+        if (sections[key].path === currentPath || (sections[key].path === '/' && currentPath === '/')) {
+          initialActiveSection = key;
+          break;
+        }
+      }
+    }
+
+    // Agar saqlangan bo'lim mavjud bo'lsa va u URL ga mos kelsa, uni ishlatamiz
+    if (savedSection && sections.hasOwnProperty(savedSection) && sections[savedSection].path === currentPath) {
       return savedSection;
     }
-    return 'dashboard';
+    return initialActiveSection;
   });
+
+  // URL o'zgarganda activeSection ni yangilash
+  useEffect(() => {
+    let currentActive = 'dashboard';
+    if (location.pathname.startsWith('/monitoring/teacher/')) {
+      currentActive = 'monitoring';
+    } else {
+      for (const key in sections) {
+        if (sections[key].path === location.pathname || (sections[key].path === '/' && location.pathname === '/')) {
+          currentActive = key;
+          break;
+        }
+      }
+    }
+    if (currentActive !== activeSection) {
+      setActiveSection(currentActive);
+    }
+    localStorage.setItem('active_section_key', currentActive);
+  }, [location.pathname, sections, activeSection]); // activeSection ham dependency bo'lishi kerak
 
   const [todaysNotesForNotifications, setTodaysNotesForNotifications] = useState([]);
   const [shownNoteSessionIds, setShownNoteSessionIds] = useState(new Set());
@@ -91,17 +165,6 @@ function App() {
 
   const [inAppNotification, setInAppNotification] = useState({ data: null });
   const [toast, setToast] = useState({ id: null, message: '', type: 'info', duration: 0, key: 0 });
-
-  useEffect(() => {
-    console.log('[App] Active Section:', activeSection);
-    console.log('[App] Token:', token);
-    if (sections.hasOwnProperty(activeSection)) {
-      localStorage.setItem('active_section_key', activeSection);
-    } else {
-      setActiveSection('dashboard');
-      localStorage.setItem('active_section_key', 'dashboard');
-    }
-  }, [activeSection, sections]);
 
   const showToast = useCallback((message, type = 'info', duration = 4000) => {
     setToast(prevToast => ({
@@ -162,8 +225,8 @@ function App() {
         continue;
       }
       const isNoteForToday = noteCallDateObj.getFullYear() === now.getFullYear() &&
-                            noteCallDateObj.getMonth() === now.getMonth() &&
-                            noteCallDateObj.getDate() === now.getDate();
+                             noteCallDateObj.getMonth() === now.getMonth() &&
+                             noteCallDateObj.getDate() === now.getDate();
       const noteTargetTimeHHMM = note.time;
       console.log(`[NOTES_CHECK_LOOP] Note ID: ${note.id}, Raw callDate: ${note.callDate}, Parsed callDate (local to browser): ${noteCallDateObj.toLocaleString()}, Is note for today (local): ${isNoteForToday}, Target HH:MM from note.time: ${noteTargetTimeHHMM}`);
 
@@ -222,7 +285,7 @@ function App() {
       const response = await apiRequest(`/applications?${queryParams.toString()}`, 'GET', null, currentToken);
       let allFetchedApplications = Array.isArray(response.data) ? response.data : [];
       console.log(`[APPS_NOTIFY_FETCH] API Response for created_after=${timestampForThisQuery}:`, JSON.parse(JSON.stringify(allFetchedApplications)));
-      const trulyNewApplications = allFetchedApplications.filter(app => 
+      const trulyNewApplications = allFetchedApplications.filter(app =>
         new Date(app.createdAt).getTime() > new Date(timestampForThisQuery).getTime()
       );
       if (allFetchedApplications.length > 0 && trulyNewApplications.length === 0) {
@@ -307,6 +370,7 @@ function App() {
         setShownNoteSessionIds(new Set());
         setShownApplicationSessionIds(new Set());
         showToast(`Xush kelibsiz, ${fullName}!`, 'success');
+        navigate('/'); // Login muvaffaqiyatli bo'lgach, bosh sahifaga yo'naltirish
       } catch (error) {
         console.error("LOGIN ERROR (Failed to decode token/extract name):", error);
         localStorage.setItem('admin_token', receivedToken);
@@ -316,6 +380,7 @@ function App() {
         fetchTodaysNotesForNotifications(receivedToken);
         fetchPendingApplicationsCount(receivedToken);
         showToast('Tizimga kirildi (ism aniqlanmadi).', 'info');
+        navigate('/'); // Login muvaffaqiyatli bo'lgach, bosh sahifaga yo'naltirish
       }
     } else {
       console.error("LOGIN ERROR (invalid/no token received):", receivedToken);
@@ -325,7 +390,7 @@ function App() {
       setAdminName(null);
       showToast('Login qilishda xatolik yuz berdi.', 'error');
     }
-  }, [fetchTodaysNotesForNotifications, fetchPendingApplicationsCount, showToast]);
+  }, [fetchTodaysNotesForNotifications, fetchPendingApplicationsCount, showToast, navigate]);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('admin_token');
@@ -347,27 +412,35 @@ function App() {
     if (pendingApplicationsCountIntervalRef.current) clearInterval(pendingApplicationsCountIntervalRef.current);
     setInAppNotification({ data: null });
     showToast('Tizimdan muvaffaqiyatli chiqdingiz.', 'success');
-  }, [showToast]);
+    navigate('/login'); // Chiqishdan keyin login sahifasiga yo'naltirish
+  }, [showToast, navigate]);
 
+  // Tokenni tekshirish va intervalarni boshqarish
   useEffect(() => {
-  console.log("[App.jsx useEffect] Token holati o'zgardi:", token ? "mavjud" : "mavjud emas");
-  if (token) {
-    try {
-      console.log("[App.jsx useEffect] Token dekodlashga urinilmoqda...");
-      const decoded = jwtDecode(token);
-      console.log("[App.jsx useEffect] Token muvaffaqiyatli dekodlandi:", decoded);
-      // ... agar token muvaffaqiyatli dekodlansa
-    } catch (e) {
-      console.error("[App.jsx useEffect] Token dekodlashda xato:", e); // << Shu yerdagi log
-      setToken(null);
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_name');
-      showToast('Token yaroqsiz, iltimos qayta kiring.', 'error');
+    console.log("[App.jsx useEffect] Token holati o'zgardi:", token ? "mavjud" : "mavjud emas");
+    if (token) {
+      try {
+        console.log("[App.jsx useEffect] Token dekodlashga urinilmoqda...");
+        const decoded = jwtDecode(token);
+        console.log("[App.jsx useEffect] Token muvaffaqiyatli dekodlandi:", decoded);
+        // Tokenning muddati tugaganligini tekshirish (ixtiyoriy)
+        if (decoded.exp * 1000 < Date.now()) {
+          console.warn("[App.jsx useEffect] Token muddati tugagan.");
+          handleLogout(); // Muddati tugagan bo'lsa, tizimdan chiqarish
+        }
+      } catch (e) {
+        console.error("[App.jsx useEffect] Token dekodlashda xato:", e);
+        handleLogout(); // Yaroqsiz token bo'lsa, tizimdan chiqarish
+      }
+    } else {
+      console.log("[App.jsx useEffect] Token mavjud emas, login sahifasi ko'rsatiladi.");
+      // Agar token yo'q bo'lsa va joriy yo'l login sahifasi bo'lmasa, login sahifasiga yo'naltirish
+      if (location.pathname !== '/login') {
+        navigate('/login');
+      }
     }
-  } else {
-     console.log("[App.jsx useEffect] Token mavjud emas, login sahifasi ko'rsatiladi.");
-  }
-}, [fetchTodaysNotesForNotifications, fetchPendingApplicationsCount, showToast, token]);
+  }, [token, handleLogout, location.pathname, navigate]);
+
 
   useEffect(() => {
     if (token) {
@@ -416,39 +489,45 @@ function App() {
     setInAppNotification({ data: null });
   }, []);
 
-  if (!token) {
-    return <LoginForm onLoginSuccess={handleLoginSuccess} showToast={showToast} />;
-  }
-
-  const ActiveComponent = sections[activeSection]?.component;
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
-  const handleSectionSelect = (key) => {
-    if (sections.hasOwnProperty(key)) {
-      setActiveSection(key);
-    } else {
-      setActiveSection('dashboard');
-    }
-    if (window.innerWidth < 768) setIsSidebarOpen(false);
-  };
+
+  // Sidebar elementini bosganda URL ga yo'naltirish
+  const handleSectionClick = useCallback((path, key) => {
+    setActiveSection(key); // Sidebar da faol bo'limni belgilash
+    navigate(path); // React Router orqali yo'naltirish
+    if (window.innerWidth < 768) setIsSidebarOpen(false); // Mobil qurilmalarda sidebar ni yopish
+  }, [navigate]);
+
+  // Agar token mavjud bo'lmasa, faqat LoginForm ni ko'rsatamiz
+  if (!token) {
+    // Router ichida bo'lgani uchun /login ga yo'naltiramiz
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginForm onLoginSuccess={handleLoginSuccess} showToast={showToast} />} />
+        <Route path="*" element={<LoginForm onLoginSuccess={handleLoginSuccess} showToast={showToast} />} /> {/* Boshqa barcha yo'llar uchun ham login */}
+      </Routes>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-100 font-inter">
+      {/* Sidebar */}
       <aside className={`
         w-72 bg-gray-900 text-gray-100 flex flex-col flex-shrink-0 shadow-2xl
         fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         md:relative md:translate-x-0 md:flex
       `}>
-        <div className="p-6 border-b border-gray-700 flex-shrink-0 text-center">
+        <div className="p-4 border-b border-gray-700 flex-shrink-0 text-center">
           <div className="flex items-center justify-center">
-            <h1 className="text-3xl font-bold text-white tracking-tight">EDUNEX</h1>
+            <img src="images/londonLogo.png" alt="london logosi" />
           </div>
         </div>
         <nav className="flex-1 px-3.5 py-5 space-y-2 overflow-y-auto">
-          {Object.entries(sections).map(([key, { label, icon: Icon }]) => (
+          {Object.entries(sections).map(([key, { label, icon: Icon, path }]) => (
             <button
               key={key}
-              onClick={() => handleSectionSelect(key)}
+              onClick={() => handleSectionClick(path, key)} // handleSectionClick dan foydalanamiz
               className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium hover:bg-gray-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-all duration-200 ease-in-out group relative ${activeSection === key ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-300 hover:text-gray-50'}`}
               aria-current={activeSection === key ? "page" : undefined}
             >
@@ -525,14 +604,31 @@ function App() {
                 </div>
               }
             >
-              {ActiveComponent ? (
-                <ActiveComponent
-                  token={token}
-                  refreshTodaysNotesForNotifications={() => fetchTodaysNotesForNotifications(token)}
-                  showToast={showToast}
-                  refreshPendingApplicationsCount={() => fetchPendingApplicationsCount(token)}
-                />
-              ) : <p className="text-center text-gray-700 text-xl mt-12">Bo'lim topilmadi.</p>}
+              <Routes>
+                {/* Asosiy sahifa */}
+                <Route path="/" element={<LazyDashboard token={token} refreshTodaysNotesForNotifications={() => fetchTodaysNotesForNotifications(token)} showToast={showToast} refreshPendingApplicationsCount={() => fetchPendingApplicationsCount(token)} />} />
+                <Route path="/dashboard" element={<LazyDashboard token={token} refreshTodaysNotesForNotifications={() => fetchTodaysNotesForNotifications(token)} showToast={showToast} refreshPendingApplicationsCount={() => fetchPendingApplicationsCount(token)} />} />
+
+                {/* Boshqa bo'limlar uchun route'lar */}
+                <Route path="/applications" element={<LazyApplicationList token={token} showToast={showToast} refreshPendingApplicationsCount={() => fetchPendingApplicationsCount(token)} />} />
+                <Route path="/students" element={<LazyStudentList token={token} showToast={showToast} />} />
+                <Route path="/teachers" element={<LazyTeacherList token={token} showToast={showToast} />} />
+                {/* Monitoring bo'limi uchun route'lar */}
+                <Route path="/monitoring" element={<LazyTeacherMonitoringList token={token} showToast={showToast} />} />
+                <Route path="/monitoring/teacher/:id" element={<LazyTeacherMonitoringDetail token={token} showToast={showToast} />} />
+
+                <Route path="/courses" element={<LazyCourseList token={token} showToast={showToast} />} />
+                <Route path="/groups" element={<LazyGroupList token={token} showToast={showToast} />} />
+                <Route path="/attendances" element={<LazyAttendanceList token={token} showToast={showToast} />} />
+                <Route path="/notes" element={<LazyNoteList token={token} showToast={showToast} />} />
+                <Route path="/payments" element={<LazyPaymentList token={token} showToast={showToast} />} />
+                <Route path="/paymentHistory" element={<LazyPaymentHistoryList token={token} showToast={showToast} />} />
+                <Route path="/debtors" element={<LazyDebtorStudentsList token={token} showToast={showToast} />} />
+                <Route path="/salaries" element={<LazySalaryList token={token} showToast={showToast} />} />
+
+                {/* Topilmagan sahifalar uchun */}
+                <Route path="*" element={<p className="text-center text-gray-700 text-xl mt-12">Sahifa topilmadi.</p>} />
+              </Routes>
             </Suspense>
           </ErrorBoundary>
         </main>

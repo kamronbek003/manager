@@ -1,5 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Users, UserPlus, Trash2, Edit, ArrowUpDown, Eye, DollarSign, User, XCircle, FileText } from 'lucide-react'; // XCircle va FileText ikonalarini qo'shdik
+import { Users, UserPlus, Trash2, Edit, ArrowUpDown, Eye, DollarSign, User, XCircle, FileText } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 import { apiRequest } from '../../utils/api';
 import { formatDDMMYYYY } from '../../utils/helpers';
 import LoadingSpinner from '../Essential/LoadingSpinner';
@@ -60,27 +63,8 @@ const StudentDetailsModal = ({ student, groups, onClose, onEdit }) => {
         }));
     }, [student?.payments]);
 
-    // Qarz holatini hisoblash (agar backenddan kelmasa)
-    // Eng yaxshisi: student obyektida to'g'ridan-to'g'ri 'debtAmount' maydoni bo'lishi.
-    const debtAmount = useMemo(() => {
-        // Bu faqat misol. Haqiqiy qarz hisobi backendda bo'lishi shart.
-        // Agar talaba.paymentsda faqat kirimlar bo'lsa, jami to'langan summani hisoblaydi.
-        // Backenddan kelgan 'totalCoursePrice' va 'totalPaid' kabi maydonlar bo'lsa, ulardan foydalanish kerak.
-        // Misol uchun, agar student ob'ektida `balance` yoki `debt` maydoni bo'lsa, undan foydalaning.
-        if (student && typeof student.balance === 'number') {
-            return student.balance; // Agar backend balance ni yuborsa
-        }
-
-        // Agar 'payments' orqali hisoblash kerak bo'lsa (bu xavfliroq, sababi chiqimlar hisobga olinmasligi mumkin):
-        // Quyidagi qismni o'zingizning to'lov tizimingizga moslang.
-        // Misol uchun, agar har bir guruhning oylik to'lovi bo'lsa va talabada qancha oy o'qiganligi,
-        // qancha to'laganligi haqida ma'lumotlar bo'lsa, qarzni hisoblash mumkin.
-        // Hozircha shartli ravishda 0 deb qo'yamiz.
-        return 0; // Backenddan aniq 'debtAmount' kelmasa, 0 deb faraz qilamiz
-    }, [student]);
-
+    const debtAmount = student?.debtAmount || 0;
     const isDebtor = debtAmount > 0;
-
     return (
         <div className="p-6 sm:p-8 bg-gradient-to-br from-gray-50 to-gray-100 max-h-[70vh] overflow-y-auto rounded-2xl">
             {/* Header */}
@@ -340,6 +324,8 @@ const StudentList = ({ token, showToast }) => {
     const filterTimeoutRef = useRef(null);
     const [groupsLoading, setGroupsLoading] = useState(false);
     const [lastStudentId, setLastStudentId] = useState(null);
+    const [isDetailsLoading, setIsDetailsLoading] = useState(false);
+    const [isExporting, setIsExporting] = useState(false); // Yangi state: PDF eksporti uchun
 
     const fetchGroupsIfNeeded = useCallback(async () => {
         if (groups.length === 0 && !groupsLoading) {
@@ -378,26 +364,24 @@ const StudentList = ({ token, showToast }) => {
     }, [token]);
 
     const fetchStudentDetails = useCallback(async (studentId) => {
-        try {
-            // Include 'payments' and 'groups' to get all necessary data for the modal
-            // You might also need to include 'debtAmount' or 'balance' from your backend if available
-            const data = await apiRequest(`/students/${studentId}?include=groups,payments`, 'GET', null, token);
-            if (data) {
-                setViewingStudent({
-                    ...data,
-                    // Assume 'balance' or 'debtAmount' comes from the backend directly for accurate debt status
-                    // If not, you'll need to calculate it here based on payments and course prices
-                    debtAmount: data.balance || data.debtAmount || 0, // EXAMPLE: Adjust based on your API response
-                });
-                setIsViewModalOpen(true);
-            } else {
-                if (showToast) showToast("Talaba ma'lumotlari topilmadi.", "warning");
-            }
-        } catch (err) {
-            console.error("[StudentList] fetchStudentDetails: Talaba ma'lumotlarini yuklashda XATOLIK:", err);
-            if (showToast) showToast("Talaba ma'lumotlarini yuklab bo'lmadi.", "error");
-        }
-    }, [token, showToast]);
+    // Modalni darhol ochib, yuklanish holatini ko'rsatish uchun state'lar
+    setIsViewModalOpen(true);
+    setViewingStudent(null); // Oldingi ma'lumotni tozalash
+    setIsDetailsLoading(true); 
+
+    try {
+        // Yangi /debtors/:id endpoint'iga so'rov
+        const data = await apiRequest(`/debtors/${studentId}`, 'GET', null, token);
+        setViewingStudent(data);
+    } catch (err) {
+        // Agar xato kelsa, foydalanuvchiga bildirish
+        console.error("Talaba detallarini yuklashda xato:", err);
+        showToast("Talabaning moliyaviy ma'lumotlarini yuklab bo'lmadi.", "error");
+        setIsViewModalOpen(false); // Xatolik bo'lsa, modalni yopish
+    } finally {
+        setIsDetailsLoading(false); // Yuklanishni to'xtatish
+    }
+}, [token, showToast]);
 
     const fetchStudents = useCallback(async (filtersToUse = filters, pageToUse = currentPage, sortToUse = sort) => {
         setLoading(true);
@@ -554,6 +538,195 @@ const StudentList = ({ token, showToast }) => {
         setViewingStudent(null);
     }, []);
 
+    // PDF eksport funksiyasi
+    const handleExportPDF = async () => {
+        if (isExporting) return;
+        setIsExporting(true);
+
+        const queryParams = new URLSearchParams({
+            page: '1',
+            limit: totalItems > 0 ? totalItems.toString() : '1000', // Barcha talabalarni olish uchun limit
+            sortBy: sort.sortBy,
+            sortOrder: sort.sortOrder,
+            include: 'groups,payments' // Guruhlar va to'lovlarni ham qo'shish
+        });
+        Object.entries(filters).forEach(([key, value]) => {
+            if (value) queryParams.append(key, value);
+        });
+
+        let allStudents = [];
+        try {
+            const response = await apiRequest(`/students?${queryParams.toString()}`, 'GET', null, token);
+            allStudents = response?.data || [];
+        } catch (err) {
+            showToast(`PDF uchun ma'lumotlarni yuklashda xatolik: ${err.message}`, 'error');
+            setIsExporting(false);
+            return;
+        }
+
+        if (allStudents.length === 0) {
+            showToast("PDF uchun ma'lumotlar topilmadi.", "warning");
+            setIsExporting(false);
+            return;
+        }
+
+        const doc = new jsPDF({ orientation: 'landscape' });
+        doc.setProperties({ title: 'Talabalar Hisoboti' });
+
+        let currentY = 20;
+
+        doc.setFontSize(18);
+        doc.text("Talabalar Bo'yicha To'liq Hisobot", 14, currentY);
+        currentY += 10;
+
+        const activeFilters = Object.entries(filters).filter(([, value]) => value)
+            .map(([key, value]) => {
+                switch (key) {
+                    case 'filterByStudentId': return `Talaba ID: ${value}`;
+                    case 'filterByName': return `Ism/Familiya: ${value}`;
+                    case 'filterByPhone': return `Telefon: ${value}`;
+                    case 'filterByStatus': return `Status: ${value}`;
+                    case 'filterByGroupId': return `Guruh: ${groupMap[value] || value}`;
+                    default: return '';
+                }
+            }).filter(Boolean);
+            
+        if (activeFilters.length > 0) {
+            doc.setFontSize(10);
+            doc.text("Amaldagi Filtrlar:", 14, currentY);
+            currentY += 6;
+            doc.setFontSize(9);
+            doc.text(activeFilters.join(' | '), 14, currentY);
+            currentY += 10;
+        }
+
+        const head = [
+            ["#", "Talaba ID", "Ism", "Familiya", "Telefon", "Ota-ona tel.", "Manzil", 
+             "Tug'ilgan sana", "Ro'yxatga olingan vaqt", "Status", "Ketish sababi", 
+             "Guruhlar", "Chegirma (%)", "Ball", "Qachon kelgan", "Qanday topdi", 
+             "Birinchi to'lov izohi", "Balans"] // "Qarzdorlik" o'rniga "Balans"
+        ];
+        const body = allStudents.map((s, index) => [
+            index + 1,
+            s.studentId || 'N/A',
+            s.firstName || '',
+            s.lastName || '',
+            s.phone || 'N/A',
+            s.parentPhone || 'N/A',
+            s.address || 'N/A',
+            formatDDMMYYYY(s.dateBirth) || 'N/A',
+            formatDDMMYYYY(s.createdAt) || 'N/A',
+            s.status || 'N/A',
+            s.status === 'NOFAOL' ? (s.whyStop || 'N/A') : 'N/A', // Only show whyStop if status is NOFAOL
+            s.groups && s.groups.length > 0
+                ? s.groups.map(group => groupMap[group.id] || group.name || group.groupId || 'N/A').join(', ')
+                : 'Yo\'q',
+            `${s.discountPercentage || s.discount || 0}%`,
+            s.ball || 0,
+            formatDDMMYYYY(s.whenCome) || 'N/A',
+            s.howFind ? { 
+                SOCIAL_MEDIA: 'Ijtimoiy tarmoqlar', 
+                FRIEND_REFERRAL: 'Do\'st tavsiyasi', 
+                ADVERTISEMENT: 'Reklama', 
+                OTHER: 'Boshqa', 
+            }[s.howFind] || 'Noma\'lum' : 'Yo\'q',
+            s.firstPaymentNote || 'Yo\'q',
+            `${(s.balance || 0).toLocaleString('uz-UZ')} so'm`
+        ]);
+
+        autoTable(doc, {
+            startY: currentY,
+            head: head,
+            body: body,
+            theme: 'striped',
+            headStyles: { fillColor: [34, 49, 63], textColor: 'white', fontSize: 7, fontStyle: 'bold' }, // Kichikroq shrift, qalin
+            bodyStyles: { fontSize: 6.5 }, // Kichikroq shrift
+            columnStyles: { 
+                0: { cellWidth: 8 }, // #
+                1: { cellWidth: 15 }, // Talaba ID
+                2: { cellWidth: 20 }, // Ism
+                3: { cellWidth: 20 }, // Familiya
+                4: { cellWidth: 25 }, // Telefon
+                5: { cellWidth: 25 }, // Ota-ona tel.
+                6: { cellWidth: 30 }, // Manzil
+                7: { cellWidth: 20 }, // Tug'ilgan sana
+                8: { cellWidth: 20 }, // Ro'yxatga olingan vaqt
+                9: { cellWidth: 15 }, // Status
+                10: { cellWidth: 25 }, // Ketish sababi
+                11: { cellWidth: 30 }, // Guruhlar
+                12: { cellWidth: 18 }, // Chegirma (%)
+                13: { cellWidth: 10 }, // Ball
+                14: { cellWidth: 20 }, // Qachon kelgan
+                15: { cellWidth: 25 }, // Qanday topdi
+                16: { cellWidth: 30 }, // Birinchi to'lov izohi
+                17: { cellWidth: 20, halign: 'right' } // Balansni o'ngga tekislash
+            }, 
+            didDrawPage: (data) => {
+                doc.setFontSize(10);
+                doc.text(`Sahifa ${doc.internal.getNumberOfPages()}`, data.settings.margin.left, doc.internal.pageSize.height - 10);
+            }
+        });
+
+        currentY = doc.lastAutoTable.finalY + 15; // Move Y position after the main table
+
+        if (allStudents.some(s => s.payments && s.payments.length > 0)) {
+            doc.setFontSize(14);
+            doc.text("To'lovlar Tarixi", 14, currentY);
+            currentY += 10;
+
+            for (const student of allStudents) {
+                if (student.payments && student.payments.length > 0) {
+                    // Check if new page is needed before adding student's payment history
+                    // Add some buffer for heading and first row
+                    if (currentY + 30 > doc.internal.pageSize.height - 20) { 
+                        doc.addPage();
+                        currentY = 20;
+                    }
+
+                    doc.setFontSize(12);
+                    doc.text(`${student.firstName} ${student.lastName} (${student.studentId}) to'lovlari:`, 14, currentY);
+                    currentY += 8;
+
+                    const paymentHead = [["Sana", "Summa", "Turi", "Qaysi oy/yil uchun", "Kim kiritdi", "Izoh", "Kiritilgan vaqt"]];
+                    const paymentBody = student.payments.map(p => [
+                        formatDDMMYYYY(p.date) || 'N/A',
+                        `${(p.summa || 0).toLocaleString('uz-UZ')} so'm`,
+                        p.paymentType || 'N/A',
+                        `${p.whichMonth || ''} ${p.whichYear || ''}`.trim() || 'N/A',
+                        p.createdByAdmin?.firstName || 'N/A', // Adminning ismini qo'shdik
+                        p.comment || 'Yo\'q',
+                        formatDDMMYYYY(p.createdAt) || 'N/A'
+                    ]);
+
+                    autoTable(doc, {
+                        startY: currentY,
+                        head: paymentHead,
+                        body: paymentBody,
+                        theme: 'grid',
+                        headStyles: { fillColor: [76, 175, 80], textColor: 'white', fontSize: 8, fontStyle: 'bold' },
+                        bodyStyles: { fontSize: 7.5 },
+                        columnStyles: {
+                            0: { cellWidth: 30 }, // Sana
+                            1: { cellWidth: 35, halign: 'right' }, // Summa
+                            2: { cellWidth: 30 }, // Turi
+                            3: { cellWidth: 35 }, // Qaysi oy/yil uchun
+                            4: { cellWidth: 35 }, // Kim kiritdi
+                            5: { cellWidth: 35 } // Kiritilgan vaqt
+                        },
+                        didDrawPage: (data) => {
+                            doc.setFontSize(10);
+                            doc.text(`Sahifa ${doc.internal.getNumberOfPages()}`, data.settings.margin.left, doc.internal.pageSize.height - 10);
+                        }
+                    });
+                    currentY = doc.lastAutoTable.finalY + 10; // Space after each payment table
+                }
+            }
+        }
+
+        doc.save(`talabalar-hisobot-${new Date().toISOString().split('T')[0]}.pdf`);
+        setIsExporting(false);
+    };
+
     return (
         <div className="p-4 sm:p-6 md:p-8 bg-gray-100 mt-0">
             <div className="bg-white rounded-xl shadow-xl border border-gray-200">
@@ -563,13 +736,23 @@ const StudentList = ({ token, showToast }) => {
                             <Users size={36} className="mr-3 text-indigo-600" aria-hidden="true" />
                             Talabalar Ro'yxati
                         </h2>
-                        <button
-                            onClick={() => openModal()}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-5 rounded-lg inline-flex items-center transition duration-150 ease-in-out shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                        >
-                            <UserPlus size={18} className="mr-2" aria-hidden="true" />
-                            Yangi Talaba
-                        </button>
+                        <div className="flex items-center gap-3"> {/* Tugmalar uchun yangi div */}
+                            <button
+                                onClick={() => openModal()}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-5 rounded-lg inline-flex items-center transition duration-150 ease-in-out shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            >
+                                <UserPlus size={18} className="mr-2" aria-hidden="true" />
+                                Yangi Talaba
+                            </button>
+                            <button
+                                onClick={handleExportPDF}
+                                disabled={students.length === 0 || isExporting}
+                                className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-5 rounded-lg inline-flex items-center transition disabled:opacity-50"
+                            >
+                                {isExporting ? <LoadingSpinner size={18} /> : <FileText size={18} className="mr-2.5" />}
+                                {isExporting ? 'Yuklanmoqda...' : "PDF Hisobot"}
+                            </button>
+                        </div>
                     </div>
                 </div>
 

@@ -3,7 +3,7 @@ import { Users, Group, BookUser, TrendingUp, AlertCircle, LineChart as LineChart
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import axios from 'axios'; 
 
-const API_BASE_URL = process.env.REACT_APP_API_URL; 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000'; 
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -290,7 +290,7 @@ const Dashboard = ({ token: initialToken }) => {
         <div className="p-4 sm:p-6 md:p-8 bg-gray-100"> 
             <header className="mb-8">
                 <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">Boshqaruv Paneli</h1>
-                <p className="text-gray-600 mt-1 text-sm sm:text-base">Markazingiz faoliyati haqida umumiy ma'lumot.</p>
+                <p className="text-gray-600 mt-1 text-sm sm:text-base">London Education faoliyati haqida umumiy ma'lumot.</p>
             </header>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">

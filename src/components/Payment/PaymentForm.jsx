@@ -560,7 +560,6 @@ const PaymentForm = ({ token, initialData, students, studentsLoading, studentsEr
             onChange={handleChange}
             required
             min="1"
-            step="50000"
             placeholder="To'lov summasi (so'm)"
             className={`${inputBaseClass} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
             aria-describedby="summaHint"

@@ -3,11 +3,6 @@ const BASE_URL = process.env.REACT_APP_API_URL;
 export async function apiRequest(endpoint, method = 'GET', body = null, token = null) {
   const url = `${BASE_URL}${endpoint}`;
 
-  console.log(`[apiRequest] BASE_URL: ${BASE_URL}`);
-  console.log(`[apiRequest] Full URL: ${url}`);
-  console.log(`[apiRequest] Method: ${method}, Token: ${token || 'No token'}`);
-  if (body) console.log(`[apiRequest] Request Body:`, JSON.stringify(body));
-
   const headers = new Headers({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -27,10 +22,8 @@ export async function apiRequest(endpoint, method = 'GET', body = null, token = 
 
   try {
     response = await fetch(url, options);
-    console.log(`[apiRequest] Response Status: ${response.status} ${response.statusText}`);
 
     if (response.status === 401) {
-      console.warn('[apiRequest] Unauthorized (401). Logging out...');
       localStorage.removeItem('admin_token');
       localStorage.removeItem('admin_name');
       window.location.reload();
@@ -41,14 +34,10 @@ export async function apiRequest(endpoint, method = 'GET', body = null, token = 
     const contentType = response.headers.get('content-type');
     const contentLength = response.headers.get('content-length');
 
-    console.log(`[apiRequest] Content-Type: ${contentType}, Content-Length: ${contentLength}`);
-
     if (contentType && contentType.includes('application/json') && contentLength !== '0') {
       try {
         responseData = await response.json();
-        console.log('[apiRequest] Parsed JSON Response:', JSON.stringify(responseData));
       } catch (jsonError) {
-        console.error('[apiRequest] Failed to parse JSON response:', jsonError);
         const error = new Error(`Serverdan noto'g'ri JSON javob formati (status: ${response.status})`);
         error.statusCode = response.status;
         error.originalError = jsonError;
@@ -66,7 +55,6 @@ export async function apiRequest(endpoint, method = 'GET', body = null, token = 
     }
 
     if (!response.ok) {
-      console.error('[apiRequest] API request failed:', response.status, responseData);
       const errorMessage = responseData?.message || `HTTP xatolik! Status: ${response.status} ${response.statusText}`;
       const error = new Error(Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage);
       error.statusCode = response.status;
