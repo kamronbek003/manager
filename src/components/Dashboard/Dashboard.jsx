@@ -1,49 +1,50 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Group, BookUser, TrendingUp, AlertCircle, LineChart as LineChartIcon, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+// Yangi ikonka 'ShoppingBag' import qilindi
+import { Users, Group, BookUser, TrendingUp, AlertCircle, LineChart as LineChartIcon, ArrowUpRight, ArrowDownRight, ShoppingBag } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import axios from 'axios'; 
+import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000'; 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 
 const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+    baseURL: API_BASE_URL,
 });
 
 const apiRequest = async (url, method = 'GET', payload = null, token = null) => {
-  console.log(`Real API Request: ${method} ${API_BASE_URL}${url}`, { payload, token });
-  try {
-    const config = {
-      method,
-      url, 
-    };
+    console.log(`Real API Request: ${method} ${API_BASE_URL}${url}`, { payload, token });
+    try {
+        const config = {
+            method,
+            url,
+        };
 
-    if (token) {
-      config.headers = {
-        ...config.headers,
-        'Authorization': `Bearer ${token}`,
-      };
+        if (token) {
+            config.headers = {
+                ...config.headers,
+                'Authorization': `Bearer ${token}`,
+            };
+        }
+
+        if (payload) {
+            if (method.toUpperCase() === 'GET') {
+                config.params = payload;
+            } else {
+                config.data = payload;
+            }
+        }
+
+        const response = await apiClient(config);
+        return response.data;
+    } catch (error) {
+        const errorMessage = error.response?.data?.message || error.message || "API so'rovida noma'lum xatolik yuz berdi.";
+        const statusCode = error.response?.status;
+        console.error('API Request Error:', {
+            message: errorMessage,
+            statusCode,
+            originalError: error.response || error.message
+        });
+        throw { message: errorMessage, originalError: error, statusCode };
     }
-
-    if (payload) {
-      if (method.toUpperCase() === 'GET') {
-        config.params = payload; 
-      } else {
-        config.data = payload; 
-      }
-    }
-
-    const response = await apiClient(config);
-    return response.data; 
-  } catch (error) {
-    const errorMessage = error.response?.data?.message || error.message || "API so'rovida noma'lum xatolik yuz berdi.";
-    const statusCode = error.response?.status;
-    console.error('API Request Error:', { 
-        message: errorMessage, 
-        statusCode, 
-        originalError: error.response || error.message
-    });
-    throw { message: errorMessage, originalError: error, statusCode };
-  }
 };
 
 
@@ -66,7 +67,7 @@ const ErrorMessage = ({ message, onRetry }) => (
                 <p className="font-bold">Xatolik</p>
                 <p className="text-sm">{message || "Noma'lum xatolik yuz berdi."}</p>
                 {onRetry && (
-                    <button 
+                    <button
                         onClick={onRetry}
                         className="mt-2 px-3 py-1 bg-red-500 text-white text-xs font-semibold rounded hover:bg-red-600 transition-colors"
                     >
@@ -80,7 +81,7 @@ const ErrorMessage = ({ message, onRetry }) => (
 
 const formatCurrency = (amount, currency = 'UZS') => {
     if (amount === null || amount === undefined || isNaN(parseFloat(String(amount)))) return '-';
-    return new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: currency, minimumFractionDigits: 0, maximumFractionDigits:0 }).format(parseFloat(String(amount)));
+    return new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(parseFloat(String(amount)));
 };
 
 const StatCard = ({ title, value, previousValue, icon: Icon, color = 'blue', loading, error, unit = '' }) => {
@@ -89,6 +90,8 @@ const StatCard = ({ title, value, previousValue, icon: Icon, color = 'blue', loa
         indigo: { lightBg: 'bg-indigo-50', darkBg: 'bg-indigo-100', text: 'text-indigo-700', iconColor: 'text-indigo-600', gradientFrom: 'from-indigo-500', gradientTo: 'to-indigo-600' },
         purple: { lightBg: 'bg-purple-50', darkBg: 'bg-purple-100', text: 'text-purple-700', iconColor: 'text-purple-600', gradientFrom: 'from-purple-500', gradientTo: 'to-purple-600' },
         green: { lightBg: 'bg-green-50', darkBg: 'bg-green-100', text: 'text-green-700', iconColor: 'text-green-600', gradientFrom: 'from-green-500', gradientTo: 'to-green-600' },
+        // Yangi karta uchun 'orange' rang sxemasi qo'shildi
+        orange: { lightBg: 'bg-orange-50', darkBg: 'bg-orange-100', text: 'text-orange-700', iconColor: 'text-orange-600', gradientFrom: 'from-orange-500', gradientTo: 'to-orange-600' },
     };
     const scheme = colorSchemes[color] || colorSchemes['blue'];
 
@@ -109,7 +112,7 @@ const StatCard = ({ title, value, previousValue, icon: Icon, color = 'blue', loa
             trendColor = 'text-red-500';
         }
     }
-    
+
     const displayValue = typeof numericValue === 'number' && !isNaN(numericValue) ? (unit === 'UZS' ? formatCurrency(numericValue) : numericValue) : (value ?? '-');
 
     return (
@@ -122,11 +125,11 @@ const StatCard = ({ title, value, previousValue, icon: Icon, color = 'blue', loa
                     </div>
                 )}
             </div>
-            
+
             {loading && <div className="h-10 w-3/4 bg-gray-200 animate-pulse rounded mt-2 mb-2"></div>}
             {error && !loading && (
                 <div className="flex items-center mt-2 text-red-600 bg-red-50 px-3 py-1.5 rounded-lg" title={typeof error === 'string' ? error : error.message}>
-                    <AlertCircle size={18} className="mr-2 flex-shrink-0"/>
+                    <AlertCircle size={18} className="mr-2 flex-shrink-0" />
                     <span className="text-xs font-semibold">Ma'lumot xatosi</span>
                 </div>
             )}
@@ -151,13 +154,13 @@ const StudentTrendChart = ({ data, loading, error, onRetry }) => {
     if (loading) {
         return <div className="h-80 flex items-center justify-center"><LoadingSpinner text="Diagramma yuklanmoqda..." /></div>;
     }
-    if (error) { 
+    if (error) {
         return <div className="h-80 flex items-center justify-center"><ErrorMessage message={typeof error === 'string' ? error : error.message} onRetry={onRetry} /></div>;
     }
     if (!data || data.length === 0) {
         return (
             <div className="h-80 flex flex-col items-center justify-center text-center text-gray-500">
-                <Users size={48} className="mb-3 opacity-50" /> 
+                <Users size={48} className="mb-3 opacity-50" />
                 <p className="font-semibold">Diagramma uchun ma'lumotlar topilmadi.</p>
                 <p className="text-sm">Hisobot davri uchun talabalar soni o'zgarishi mavjud emas.</p>
             </div>
@@ -169,22 +172,22 @@ const StudentTrendChart = ({ data, loading, error, onRetry }) => {
             <LineChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6b7280' }} />
-                <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} /> 
+                <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} />
                 <Tooltip
-                    formatter={(value) => [value, "Talabalar"]} 
+                    formatter={(value) => [value, "Talabalar"]}
                     labelStyle={{ color: '#374151', fontWeight: 'bold' }}
-                    itemStyle={{ color: '#3b82f6' }} 
+                    itemStyle={{ color: '#3b82f6' }}
                     contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '0.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', border: '1px solid #e5e7eb' }}
                 />
                 <Legend wrapperStyle={{ fontSize: '14px', paddingTop: '10px' }} />
-                <Line 
-                    type="monotone" 
-                    dataKey="count" 
-                    name="Talabalar Soni" 
-                    stroke="#3b82f6" 
-                    strokeWidth={2.5} 
-                    dot={{ r: 5, fill: '#3b82f6', stroke: '#fff', strokeWidth: 1 }} 
-                    activeDot={{ r: 7, stroke: '#fff', strokeWidth: 2, fill: '#2563eb' }} 
+                <Line
+                    type="monotone"
+                    dataKey="count"
+                    name="Talabalar Soni"
+                    stroke="#3b82f6"
+                    strokeWidth={2.5}
+                    dot={{ r: 5, fill: '#3b82f6', stroke: '#fff', strokeWidth: 1 }}
+                    activeDot={{ r: 7, stroke: '#fff', strokeWidth: 2, fill: '#2563eb' }}
                 />
             </LineChart>
         </ResponsiveContainer>
@@ -193,24 +196,27 @@ const StudentTrendChart = ({ data, loading, error, onRetry }) => {
 
 const Dashboard = ({ token: initialToken }) => {
     const [token, setToken] = useState(initialToken || localStorage.getItem('authToken'));
-    
+
     const [stats, setStats] = useState({
         studentCount: { current: null, previous: null },
         groupCount: { current: null, previous: null },
         teacherCount: { current: null, previous: null },
         totalPaymentsMonth: { current: null, previous: null },
+        soldCoursesCount: { current: null, previous: null },
     });
-    const [studentTrendData, setStudentTrendData] = useState([]); 
-    
+    const [studentTrendData, setStudentTrendData] = useState([]);
+
     const [loading, setLoading] = useState({
         counts: true,
         paymentsSum: true,
-        studentTrendChart: true, 
+        studentTrendChart: true,
+        soldCourses: true,
     });
     const [error, setError] = useState({
         counts: null,
         paymentsSum: null,
-        studentTrendChart: null, 
+        studentTrendChart: null,
+        soldCourses: null,
     });
 
     const fetchCounts = useCallback(async (currentToken) => {
@@ -236,11 +242,7 @@ const Dashboard = ({ token: initialToken }) => {
         setLoading(prev => ({ ...prev, paymentsSum: true }));
         setError(prev => ({ ...prev, paymentsSum: null }));
         try {
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            const dateFrom = thirtyDaysAgo.toISOString();
-
-            const result = await apiRequest('/stats/payments-sum', 'GET', { dateFrom }, currentToken);
+            const result = await apiRequest('/stats/payments-sum', 'GET', null, currentToken);
             setStats(prev => ({
                 ...prev,
                 totalPaymentsMonth: result?.totalSum ?? prev.totalPaymentsMonth,
@@ -253,11 +255,11 @@ const Dashboard = ({ token: initialToken }) => {
         }
     }, []);
 
-    const fetchStudentTrend = useCallback(async (currentToken) => { 
+    const fetchStudentTrend = useCallback(async (currentToken) => {
         setLoading(prev => ({ ...prev, studentTrendChart: true }));
         setError(prev => ({ ...prev, studentTrendChart: null }));
         try {
-            const result = await apiRequest('/stats/student-trend', 'GET', null, currentToken); 
+            const result = await apiRequest('/stats/student-trend', 'GET', null, currentToken);
             if (result && Array.isArray(result.data)) {
                 setStudentTrendData(result.data);
             } else {
@@ -273,27 +275,85 @@ const Dashboard = ({ token: initialToken }) => {
         }
     }, []);
 
+    // YANGILANGAN FUNKSIYA: Barcha sahifalardagi o'quvchilarni yuklaydi
+    const fetchSoldCourses = useCallback(async (currentToken) => {
+        setLoading(prev => ({ ...prev, soldCourses: true }));
+        setError(prev => ({ ...prev, soldCourses: null }));
+        
+        try {
+            let allStudents = [];
+            let currentPage = 1;
+            const limit = 50; // Bir so'rovda 50 ta o'quvchi so'raymiz (server imkoniyatiga qarab o'zgartirish mumkin)
+            let totalStudents = 0;
+            let fetchedCount = 0;
+
+            // Birinchi so'rovni yuborib, jami o'quvchilar sonini (`total`) olamiz
+            const initialResponse = await apiRequest('/students', 'GET', { page: currentPage, limit }, currentToken);
+            
+            // API javobi to'g'ri formatda ekanligini tekshirish
+            if (!initialResponse || !Array.isArray(initialResponse.data) || typeof initialResponse.total !== 'number') {
+                throw new Error("Studentlar ro'yxati yoki jami soni yaroqsiz formatda keldi.");
+            }
+
+            allStudents = initialResponse.data;
+            totalStudents = initialResponse.total;
+            fetchedCount = allStudents.length;
+            
+            // Agar birinchi so'rovda hamma o'quvchi kelmagan bo'lsa, davom etamiz
+            while (fetchedCount < totalStudents) {
+                currentPage++;
+                const subsequentResponse = await apiRequest('/students', 'GET', { page: currentPage, limit }, currentToken);
+                
+                if (!subsequentResponse || !Array.isArray(subsequentResponse.data) || subsequentResponse.data.length === 0) {
+                    // Agar keyingi sahifa bo'sh kelsa yoki xato bo'lsa, tsiklni to'xtatamiz
+                    break;
+                }
+                
+                allStudents = allStudents.concat(subsequentResponse.data);
+                fetchedCount += subsequentResponse.data.length;
+            }
+            
+            // Barcha o'quvchilar yuklangandan so'ng kurslar sonini hisoblash
+            const totalSoldCourses = allStudents.reduce((sum, student) => {
+                return sum + (student.groups && Array.isArray(student.groups) ? student.groups.length : 0);
+            }, 0);
+            
+            setStats(prev => ({
+                ...prev,
+                soldCoursesCount: { current: totalSoldCourses, previous: null },
+            }));
+
+        } catch (err) {
+            console.error("Error fetching all students for sold courses count:", err);
+            setError(prev => ({ ...prev, soldCourses: err.message || "Barcha o'quvchilarni yuklashda xatolik." }));
+        } finally {
+            setLoading(prev => ({ ...prev, soldCourses: false }));
+        }
+    }, []);
+
+
     useEffect(() => {
         if (token) {
             fetchCounts(token);
             fetchRecentPaymentsSum(token);
-            fetchStudentTrend(token); 
+            fetchStudentTrend(token);
+            fetchSoldCourses(token);
         } else {
             console.warn("API so'rovlari uchun token mavjud emas. Iltimos, tizimga kiring.");
             const authErrorMsg = "Avtorizatsiya uchun token topilmadi.";
-            setError({ counts: authErrorMsg, paymentsSum: authErrorMsg, studentTrendChart: authErrorMsg });
-            setLoading({ counts: false, paymentsSum: false, studentTrendChart: false });
+            setError({ counts: authErrorMsg, paymentsSum: authErrorMsg, studentTrendChart: authErrorMsg, soldCourses: authErrorMsg });
+            setLoading({ counts: false, paymentsSum: false, studentTrendChart: false, soldCourses: false });
         }
-    }, [token, fetchCounts, fetchRecentPaymentsSum, fetchStudentTrend]); 
+    }, [token, fetchCounts, fetchRecentPaymentsSum, fetchStudentTrend, fetchSoldCourses]);
 
     return (
-        <div className="p-4 sm:p-6 md:p-8 bg-gray-100"> 
+        <div className="p-4 sm:p-6 md:p-8 bg-gray-100">
             <header className="mb-8">
                 <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">Boshqaruv Paneli</h1>
                 <p className="text-gray-600 mt-1 text-sm sm:text-base">London Education faoliyati haqida umumiy ma'lumot.</p>
             </header>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
                 <StatCard
                     title="Jami Talabalar"
                     value={stats.studentCount?.current}
@@ -322,7 +382,7 @@ const Dashboard = ({ token: initialToken }) => {
                     error={error.counts}
                 />
                 <StatCard
-                    title="Joriy Davr Tushumi" // Sarlavha o'zgartirildi
+                    title="Joriy Davr Tushumi"
                     value={stats.totalPaymentsMonth?.current}
                     previousValue={stats.totalPaymentsMonth?.previous}
                     icon={TrendingUp}
@@ -331,16 +391,25 @@ const Dashboard = ({ token: initialToken }) => {
                     error={error.paymentsSum}
                     unit="UZS"
                 />
+                <StatCard
+                    title="Jami Sotilgan Kurslar"
+                    value={stats.soldCoursesCount?.current}
+                    previousValue={stats.soldCoursesCount?.previous}
+                    icon={ShoppingBag}
+                    color="orange"
+                    loading={loading.soldCourses}
+                    error={error.soldCourses}
+                />
             </div>
 
             <div className="bg-white p-6 sm:p-8 rounded-xl shadow-xl border border-gray-200 mb-10">
                 <div className="flex items-center mb-6">
-                    <LineChartIcon size={26} className="mr-3 text-blue-600"/> 
-                    <h2 className="text-xl sm:text-2xl font-semibold text-gray-700">Talabalar Soni Dinamikasi</h2> 
+                    <LineChartIcon size={26} className="mr-3 text-blue-600" />
+                    <h2 className="text-xl sm:text-2xl font-semibold text-gray-700">Talabalar Soni Dinamikasi</h2>
                 </div>
-                <StudentTrendChart 
-                    data={studentTrendData} 
-                    loading={loading.studentTrendChart} 
+                <StudentTrendChart
+                    data={studentTrendData}
+                    loading={loading.studentTrendChart}
                     error={error.studentTrendChart}
                     onRetry={() => token ? fetchStudentTrend(token) : console.warn("Qayta urinish uchun token yo'q")}
                 />
