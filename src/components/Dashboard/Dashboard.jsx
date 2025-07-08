@@ -275,7 +275,6 @@ const Dashboard = ({ token: initialToken }) => {
         }
     }, []);
 
-    // YANGILANGAN FUNKSIYA: Barcha sahifalardagi o'quvchilarni yuklaydi
     const fetchSoldCourses = useCallback(async (currentToken) => {
         setLoading(prev => ({ ...prev, soldCourses: true }));
         setError(prev => ({ ...prev, soldCourses: null }));
@@ -283,29 +282,30 @@ const Dashboard = ({ token: initialToken }) => {
         try {
             let allStudents = [];
             let currentPage = 1;
-            const limit = 50; // Bir so'rovda 50 ta o'quvchi so'raymiz (server imkoniyatiga qarab o'zgartirish mumkin)
+            const limit = 100; // Bir so'rovda 50 ta o'quvchi so'raymiz
             let totalStudents = 0;
             let fetchedCount = 0;
 
-            // Birinchi so'rovni yuborib, jami o'quvchilar sonini (`total`) olamiz
-            const initialResponse = await apiRequest('/students', 'GET', { page: currentPage, limit }, currentToken);
+            // --- O'ZGARTIRISH: Faqat 'FAOL' statusli o'quvchilarni so'rash ---
+            const filterParams = { page: currentPage, limit, filterByStatus: 'FAOL' };
+
+            // Birinchi so'rovni yuborib, jami FAOL o'quvchilar sonini (`total`) olamiz
+            const initialResponse = await apiRequest('/students', 'GET', filterParams, currentToken);
             
-            // API javobi to'g'ri formatda ekanligini tekshirish
             if (!initialResponse || !Array.isArray(initialResponse.data) || typeof initialResponse.total !== 'number') {
-                throw new Error("Studentlar ro'yxati yoki jami soni yaroqsiz formatda keldi.");
+                throw new Error("Faol studentlar ro'yxati yoki jami soni yaroqsiz formatda keldi.");
             }
 
             allStudents = initialResponse.data;
             totalStudents = initialResponse.total;
             fetchedCount = allStudents.length;
             
-            // Agar birinchi so'rovda hamma o'quvchi kelmagan bo'lsa, davom etamiz
             while (fetchedCount < totalStudents) {
                 currentPage++;
-                const subsequentResponse = await apiRequest('/students', 'GET', { page: currentPage, limit }, currentToken);
+                const subsequentFilterParams = { page: currentPage, limit, filterByStatus: 'FAOL' };
+                const subsequentResponse = await apiRequest('/students', 'GET', subsequentFilterParams, currentToken);
                 
                 if (!subsequentResponse || !Array.isArray(subsequentResponse.data) || subsequentResponse.data.length === 0) {
-                    // Agar keyingi sahifa bo'sh kelsa yoki xato bo'lsa, tsiklni to'xtatamiz
                     break;
                 }
                 
@@ -313,7 +313,8 @@ const Dashboard = ({ token: initialToken }) => {
                 fetchedCount += subsequentResponse.data.length;
             }
             
-            // Barcha o'quvchilar yuklangandan so'ng kurslar sonini hisoblash
+            // Endi `allStudents` massivida faqat FAOL o'quvchilar bor.
+            // Shuning uchun qo'shimcha filterlash shart emas.
             const totalSoldCourses = allStudents.reduce((sum, student) => {
                 return sum + (student.groups && Array.isArray(student.groups) ? student.groups.length : 0);
             }, 0);
@@ -324,8 +325,8 @@ const Dashboard = ({ token: initialToken }) => {
             }));
 
         } catch (err) {
-            console.error("Error fetching all students for sold courses count:", err);
-            setError(prev => ({ ...prev, soldCourses: err.message || "Barcha o'quvchilarni yuklashda xatolik." }));
+            console.error("Error fetching active students for sold courses count:", err);
+            setError(prev => ({ ...prev, soldCourses: err.message || "Faol o'quvchilar kurslarini yuklashda xatolik." }));
         } finally {
             setLoading(prev => ({ ...prev, soldCourses: false }));
         }
