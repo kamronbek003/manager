@@ -4,6 +4,7 @@ import { parseDDMMYYYY, formatDDMMYYYY } from '../../utils/helpers';
 import { apiRequest } from '../../utils/api';
 import ErrorMessage from '../Essential/ErrorMessage';
 import LoadingSpinner from '../Essential/LoadingSpinner';
+import { percent } from 'framer-motion';
 
 const TeacherForm = ({ 
     token, 
@@ -22,6 +23,8 @@ const TeacherForm = ({
         experience: initialData?.experience || 0,
         startedAt: initialData?.startedAt ? formatDDMMYYYY(initialData.startedAt) : '', 
         subject: initialData?.subject || '',
+        percent: initialData?.percent || 50,
+
     });
     const [isPasswordVisible, setIsPasswordVisible] = useState(false); 
     const [loading, setLoading] = useState(false);
@@ -41,11 +44,12 @@ const TeacherForm = ({
                 experience: initialData.experience || 0,
                 startedAt: initialData.startedAt ? formatDDMMYYYY(initialData.startedAt) : '',
                 subject: initialData.subject || '',
+                percent: initialData.percent || 50,
             });
         } else if (!isEditing) {
              setFormData({
                 firstName: '', lastName: '', phone: '', password: '', address: '',
-                dateBirth: '', experience: 0, startedAt: '', subject: '', 
+                dateBirth: '', experience: 0, startedAt: '', subject: '', percent: 50, 
             });
         }
     }, [initialData, isEditing]);
@@ -109,6 +113,7 @@ const TeacherForm = ({
     startedAt: formData.startedAt || undefined, 
     experience: formData.experience === '' ? 0 : experienceValue,
     subject: formData.subject,
+    percent: formData.percent,
   };
 
   if (formData.password) {
@@ -226,6 +231,10 @@ const TeacherForm = ({
                     <div>
                         <label htmlFor="startedAt" className={labelBaseClass}>Ish boshlagan sana</label>
                         <input type="text" name="startedAt" id="startedAt" value={formData.startedAt} onChange={handleChange} placeholder="DD-MM-YYYY" pattern="\d{2}-\d{2}-\d{4}" title="Format: DD-MM-YYYY" className={inputBaseClass}/>
+                    </div>
+                    <div>
+                        <label htmlFor="percent" className={labelBaseClass}>Ishlash foizi</label>
+                        <input type="text" name="percent" id="percent" value={formData.percent} onChange={handleChange} placeholder="40" className={inputBaseClass}/>
                     </div>
                 </div>
             </div>

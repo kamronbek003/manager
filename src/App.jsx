@@ -1,15 +1,19 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense, lazy, Component } from 'react';
 import {
-  BrowserRouter as Router, // Odatda index.js da o'raladi, lekin bu yerda import qoladi
+  BrowserRouter as Router, 
   Routes,
   Route,
-  useNavigate, // Yangi: sahifalar orasida o'tish uchun
-  useLocation, // Yangi: joriy URL manzilini olish uchun
+  useNavigate, 
+  useLocation,
 } from 'react-router-dom';
 import {
   LayoutDashboard, Users, LogOut, BookUser, UsersRound as GroupIcon, DollarSign,
   Notebook, ClipboardCheck, UserCircle, History, Menu, X as CloseIcon, UserX,
   LibraryBig, BellDot, AreaChart,
+  CupSodaIcon,
+  PersonStandingIcon,
+  Heading1Icon,
+  MegaphoneIcon
 } from 'lucide-react';
 import { jwtDecode } from 'jwt-decode';
 import LoginForm from './components/Login/LoginForm';
@@ -19,7 +23,6 @@ import ToastNotification from './components/Essential/ToastNotification';
 import { apiRequest } from './utils/api';
 import { playNotificationSound } from './services/notificationService';
 
-// Komponentlarni lazy (dangasa) yuklash
 const LazyDashboard = lazy(() => import('./components/Dashboard/Dashboard'));
 const LazyStudentList = lazy(() => import('./components/Student/StudentList'));
 const LazyTeacherList = lazy(() => import('./components/Teacher/TeacherList'));
@@ -33,7 +36,8 @@ const LazyCourseList = lazy(() => import('./components/Course/CourseList'));
 const LazyApplicationList = lazy(() => import('./components/Application/ApplicationList'));
 const LazySalaryList = lazy(() => import('./components/Salary/SalaryList'));
 const LazyTeacherMonitoringList = lazy(() => import('./components/Monitoring/TeacherMonitoringList'));
-const LazyTeacherMonitoringDetail = lazy(() => import('./components/Monitoring/TeacherMonitoringDetail')); // YANGI: Detail komponenti
+const LazyTeacherMonitoringDetail = lazy(() => import('./components/Monitoring/TeacherMonitoringDetail')); 
+const LazyLiderTeachers = lazy(() => import('./components/Monitoring/TeacherStatusUpdater'))
 
 const NOTES_CHECK_INTERVAL = 100000;
 const NOTES_FETCH_INTERVAL = 60000;
@@ -101,6 +105,7 @@ function App() {
     paymentHistory: { label: "To'lovlar Tarixi", icon: History, path: '/paymentHistory' },
     debtors: { label: 'Qarzdorlar', icon: UserX, path: '/debtors' },
     salaries: { label: 'Maoshlar', icon: DollarSign, path: '/salaries' },
+    liders: {label: 'Lider Ustozlar', icon: MegaphoneIcon, path: '/liders'}
   }), []);
 
   // activeSection ni URL ga qarab belgilash
@@ -121,14 +126,12 @@ function App() {
       }
     }
 
-    // Agar saqlangan bo'lim mavjud bo'lsa va u URL ga mos kelsa, uni ishlatamiz
     if (savedSection && sections.hasOwnProperty(savedSection) && sections[savedSection].path === currentPath) {
       return savedSection;
     }
     return initialActiveSection;
   });
 
-  // URL o'zgarganda activeSection ni yangilash
   useEffect(() => {
     let currentActive = 'dashboard';
     if (location.pathname.startsWith('/monitoring/teacher/')) {
@@ -498,9 +501,7 @@ function App() {
     if (window.innerWidth < 768) setIsSidebarOpen(false); // Mobil qurilmalarda sidebar ni yopish
   }, [navigate]);
 
-  // Agar token mavjud bo'lmasa, faqat LoginForm ni ko'rsatamiz
   if (!token) {
-    // Router ichida bo'lgani uchun /login ga yo'naltiramiz
     return (
       <Routes>
         <Route path="/login" element={<LoginForm onLoginSuccess={handleLoginSuccess} showToast={showToast} />} />
@@ -625,6 +626,7 @@ function App() {
                 <Route path="/paymentHistory" element={<LazyPaymentHistoryList token={token} showToast={showToast} />} />
                 <Route path="/debtors" element={<LazyDebtorStudentsList token={token} showToast={showToast} />} />
                 <Route path="/salaries" element={<LazySalaryList token={token} showToast={showToast} />} />
+                <Route path="/liders" element={<LazyLiderTeachers token={token} showToast={showToast} />} />
 
                 {/* Topilmagan sahifalar uchun */}
                 <Route path="*" element={<p className="text-center text-gray-700 text-xl mt-12">Sahifa topilmadi.</p>} />
