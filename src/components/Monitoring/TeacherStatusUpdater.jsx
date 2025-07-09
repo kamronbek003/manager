@@ -99,7 +99,7 @@ const TeacherStatusUpdater = ({ token }) => {
             setLoading(true);
             setError(null);
             try {
-                const response = await apiRequest('/teachers', 'GET', null, token);
+                const response = await apiRequest('/teachers?limit=100', 'GET', null, token);
                 setTeachers(response?.data || []);
             } catch (err) {
                 setError("O'qituvchilarni yuklashda xatolik yuz berdi.");
