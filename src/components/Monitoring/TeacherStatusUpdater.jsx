@@ -112,6 +112,7 @@ const TeacherStatusUpdater = ({ token }) => {
         fetchTeachers();
     }, [token]);
 
+
     const handleUpdateTeacher = async (teacherId, updateData) => {
         setUpdatingId(teacherId);
         try {
