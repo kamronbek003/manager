@@ -44,10 +44,11 @@ const SalaryForm = ({ token, salary, onClose, onSave, showToast }) => {
   useEffect(() => {
     const fetchTeachers = async () => {
       try {
-        console.log('[SalaryForm] Fetching teachers with URL: /teachers?select=id,firstName,lastName,percent');
-        const response = await apiRequest('/teachers?select=id,firstName,lastName,percent', 'GET', null, token);
-        console.log('[SalaryForm] Teachers API Response:', response);
+        const response = await apiRequest('/teachers?select=id,firstName,lastName,limit=100,percent', 'GET', null, token);
+        console.log('KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK', response);
         const teachersData = Array.isArray(response.data) ? response.data : [];
+        console.log(teachersData);
+        
         setTeachers(teachersData);
         if (teachersData.length === 0) {
           console.warn('[SalaryForm] No teachers found in response.');
@@ -65,6 +66,9 @@ const SalaryForm = ({ token, salary, onClose, onSave, showToast }) => {
     };
 
     fetchTeachers();
+
+    console.log(salary);
+    
 
     if (salary) {
       setFormData({
@@ -100,6 +104,8 @@ const SalaryForm = ({ token, salary, onClose, onSave, showToast }) => {
       setIsCalculating(true);
       try {
         const teacher = teachers.find((t) => t.id === formData.teacherId);
+        console.log("KKKKKIIIIIIIMMMMMM", teacher);
+        
         if (!teacher || typeof teacher.percent !== 'number') {
           setEstimatedSalary(null);
           setSalaryBreakdown({ groups: [], payments: [], totalPayments: 0 });
@@ -144,8 +150,8 @@ const SalaryForm = ({ token, salary, onClose, onSave, showToast }) => {
           return;
         }
 
-        const query = `/payments?groupId_in=${groupIds.join(',')}&month=${formData.forMonth}&year=${formData.forYear}`;
-        console.log('[SalaryForm] Fetching payments with query:', { query, whichMonth, whichYear: Number(formData.forYear) });
+        const query = `/payments?groupId_in=${groupIds.join(',')}&filterByMonth=${formData.forMonth}&filterByYear=${formData.forYear}`;
+        console.log("WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWw",'[SalaryForm] Fetching payments with query:', { query, whichMonth, whichYear: Number(formData.forYear) });  
         const paymentsResponse = await apiRequest(query, 'GET', null, token);
         console.log('[SalaryForm] Payments API Response:', {
           teacherId: formData.teacherId,
