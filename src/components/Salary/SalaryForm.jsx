@@ -12,7 +12,7 @@ const MONTH_MAP = {
   APREL: { value: 4, label: 'Aprel' },
   MAY: { value: 5, label: 'May' },
   IYUN: { value: 6, label: 'Iyun' },
-  IYUL: { value: 7, label: 'Iyul' },
+  IYUL: { value: 7, label: 'iyul' },
   AVGUST: { value: 8, label: 'Avgust' },
   SENTABR: { value: 9, label: 'Sentabr' },
   OKTABR: { value: 10, label: 'Oktabr' },
@@ -142,6 +142,8 @@ const SalaryForm = ({ token, salary, onClose, onSave, showToast }) => {
 
         const forMonthNum = Number(formData.forMonth);
         const whichMonth = Object.keys(MONTH_MAP).find(key => MONTH_MAP[key].value === forMonthNum);
+        console.log(whichMonth);
+        
         if (!whichMonth) {
           console.error('[SalaryForm] Invalid month:', { forMonth: formData.forMonth });
           showToast('Noto‘g‘ri oy tanlangan.', 'error');
@@ -150,7 +152,7 @@ const SalaryForm = ({ token, salary, onClose, onSave, showToast }) => {
           return;
         }
 
-        const query = `/payments?groupId_in=${groupIds.join(',')}&filterByMonth=${formData.forMonth}&filterByYear=${formData.forYear}`;
+        const query = `/payments?groupId_in=${groupIds.join(',')}&filterByMonth=${whichMonth}&filterByYear=${formData.forYear}`;
         console.log("WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWw",'[SalaryForm] Fetching payments with query:', { query, whichMonth, whichYear: Number(formData.forYear) });  
         const paymentsResponse = await apiRequest(query, 'GET', null, token);
         console.log('[SalaryForm] Payments API Response:', {

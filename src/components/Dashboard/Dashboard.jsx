@@ -4,7 +4,7 @@ import { Users, Group, BookUser, TrendingUp, AlertCircle, LineChart as LineChart
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,

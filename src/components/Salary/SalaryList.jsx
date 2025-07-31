@@ -14,18 +14,18 @@ const DEFAULT_LIMIT = 15;
 const DEBOUNCE_DELAY = 350;
 
 const MONTHS = [
-{ value: 1, label: 'Yanvar' },
-{ value: 2, label: 'Fevral' },
-{ value: 3, label: 'Mart' },
-{ value: 4, label: 'Aprel' },
-{ value: 5, label: 'May' },
-{ value: 6, label: 'Iyun' },
-{ value: 7, label: 'Iyul' },
-{ value: 8, label: 'Avgust' },
-{ value: 9, label: 'Sentabr' },
-{ value: 10, label: 'Oktabr' },
-{ value: 11, label: 'Noyabr' },
-{ value: 12, label: 'Dekabr' },
+{ value: 1, label: 'YANVAR' },
+{ value: 2, label: 'FEVRAL' },
+{ value: 3, label: 'MART' },
+{ value: 4, label: 'APREL' },
+{ value: 5, label: 'MAY' },
+{ value: 6, label: 'IYUN' },
+{ value: 7, label: 'IYUL' },
+{ value: 8, label: 'AVGUST' },
+{ value: 9, label: 'SENTABR' },
+{ value: 10, label: 'OKTABR' },
+{ value: 11, label: 'NOYABR' },
+{ value: 12, label: 'DEKABR' },
 ];
 
 const SalaryRow = React.memo(({ salary, onEdit, onDelete }) => (
