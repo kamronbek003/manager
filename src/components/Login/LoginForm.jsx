@@ -7,7 +7,7 @@ const LoginForm = ({ onLoginSuccess }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
-    const platformName = "LIFE EDUCATION"; 
+    const platformName = "LONDON EDUCATION"; 
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();

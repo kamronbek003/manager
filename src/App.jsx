@@ -521,7 +521,7 @@ function App() {
       `}>
         <div className="p-4 border-b border-gray-700 flex-shrink-0 text-center">
           <div className="flex items-center justify-center">
-            <h1>LIFE EDUCATION</h1>
+            <img src="images/londonLogo.png" alt="london logosi" />
           </div>
         </div>
         <nav className="flex-1 px-3.5 py-5 space-y-2 overflow-y-auto">

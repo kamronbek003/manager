@@ -23,7 +23,7 @@ const GroupForm = ({ token, initialData, teachers, onFormSubmit, onCancel, showT
     { value: 'Dush', label: 'Dushanba' },
     { value: 'Sesh', label: 'Seshanba' },
     { value: 'Chor', label: 'Chorshanba' },
-    { value: 'Pay', label: 'Payshanba' },
+    { value: 'Pays', label: 'Payshanba' },
     { value: 'Jum', label: 'Juma' },
     { value: 'Shan', label: 'Shanba' },
     { value: 'Yak', label: 'Yakshanba' },
